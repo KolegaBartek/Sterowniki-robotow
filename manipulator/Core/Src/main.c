@@ -29,9 +29,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stm32l476g_discovery_gyroscope.h"
-#include "stm32l476g_discovery.h"
 #include <stdio.h> // function printf
+#include "../../Drivers/BSP/sensors/stm32l476g_discovery.h"
+#include "../../Drivers/BSP/sensors/stm32l476g_discovery_gyroscope.h"
+#include "../../Drivers/BSP/sensors/stm32l476g_discovery_glass_lcd.h"
 
 /* USER CODE END Includes */
 
@@ -75,7 +76,7 @@ void PeriphCommonClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 int _write(int file, char *ptr ,int len) {
-	HAL_UART_Transmit(&huart2 ,ptr ,len ,50);
+	HAL_UART_Transmit(&huart2 ,(uint8_t*)ptr ,len ,50);
 	return len;
 }
 /* USER CODE END 0 */
@@ -120,6 +121,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   BSP_GYRO_Init();
+  BSP_LCD_GLASS_Init();
   //L3GD20_Init(InitStruct);
 
 
@@ -133,13 +135,19 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	 BSP_GYRO_GetXYZ(data);
-	 printf("X: %d		Y: %d		Z: %d\r\n", (int)data[0], (int)data[1], (int)data[2]);
+	 //printf("X: %d		Y: %d		Z: %d\r\n", (int)data[0], (int)data[1], (int)data[2]);
 	 HAL_Delay(500);
 	 //L3GD20_ReadXYZAngRate(&data2);
 	 //status = L3GD20_GetDataStatus();
 	 //HAL_USART_Transmit_DMA(USART_HandleTypeDef * husart, uint8_t *,pTxData, uint16_t Size);
 
 	 //HAL_UART_Transmit_DMA(huart, pData, Size);
+
+	 BSP_LCD_GLASS_Clear();
+	 //BSP_LCD_GLASS_DisplayChar((uint8_t*)"A", POINT_ON, DOUBLEPOINT_OFF, 2);
+	 BSP_LCD_GLASS_DisplayString((uint8_t*)"Ala");
+	 BSP_LCD_GLASS_Contrast(4);
+	 HAL_Delay(200);
 
 /*
 	  // przycisk
