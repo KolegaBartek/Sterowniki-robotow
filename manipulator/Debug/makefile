@@ -1,6 +1,5 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (11.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -10,11 +9,11 @@ RM := rm -rf
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include Drivers/STM32L4xx_HAL_Driver/Src/subdir.mk
--include Drivers/BSP/sensors/subdir.mk
--include Drivers/BSP/Components/l3gd20/subdir.mk
--include Drivers/BSP/Components/hts221/subdir.mk
+-include Drivers/BSP/devices/subdir.mk
+-include Drivers/BSP/Components/lsm303c/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
+-include subdir.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -31,67 +30,52 @@ endif
 
 -include ../makefile.defs
 
-OPTIONAL_TOOL_DEPS := \
-$(wildcard ../makefile.defs) \
-$(wildcard ../makefile.init) \
-$(wildcard ../makefile.targets) \
-
-
-BUILD_ARTIFACT_NAME := manipulator_blad
-BUILD_ARTIFACT_EXTENSION := elf
-BUILD_ARTIFACT_PREFIX :=
-BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
-
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-manipulator_blad.elf \
-
-MAP_FILES += \
-manipulator_blad.map \
+manipulator.elf \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-manipulator_blad.list \
+manipulator.list \
+
+OBJCOPY_BIN += \
+manipulator.bin \
 
 
 # All Target
-all: main-build
-
-# Main-build Target
-main-build: manipulator_blad.elf secondary-outputs
+all: manipulator.elf secondary-outputs
 
 # Tool invocations
-manipulator_blad.elf manipulator_blad.map: $(OBJS) $(USER_OBJS) C:\Users\joann\STM32CubeIDE\workspace_1.14.0\manipulator\STM32L476VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "manipulator_blad.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\joann\STM32CubeIDE\workspace_1.14.0\manipulator\STM32L476VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="manipulator_blad.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+manipulator.elf: $(OBJS) $(USER_OBJS) C:\Users\barte\Desktop\Studia\VI\ semestr\Sterowniki_robotow\Projekt\Sterowniki-robotow\manipulator\STM32L476VGTX_FLASH.ld
+	arm-none-eabi-gcc -o "manipulator.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\barte\Desktop\Studia\VI semestr\Sterowniki_robotow\Projekt\Sterowniki-robotow\manipulator\STM32L476VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="manipulator.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+default.size.stdout: $(EXECUTABLES)
 	arm-none-eabi-size  $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-manipulator_blad.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "manipulator_blad.list"
+manipulator.list: $(EXECUTABLES)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "manipulator.list"
+	@echo 'Finished building: $@'
+	@echo ' '
+
+manipulator.bin: $(EXECUTABLES)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "manipulator.bin"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) default.size.stdout manipulator_blad.elf manipulator_blad.list manipulator_blad.map
+	-$(RM) *
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
 
-fail-specified-linker-script-missing:
-	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'
-	@exit 2
-
-warn-no-linker-script-specified:
-	@echo 'Warning: No linker script specified. Check the linker settings in the build configuration.'
-
-.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified
+.PHONY: all clean dependents
+.SECONDARY:
 
 -include ../makefile.targets

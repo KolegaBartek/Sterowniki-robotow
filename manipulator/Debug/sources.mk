@@ -1,6 +1,5 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (11.3.rel1)
 ################################################################################
 
 ELF_SRCS := 
@@ -9,23 +8,20 @@ S_SRCS :=
 C_SRCS := 
 S_UPPER_SRCS := 
 O_SRCS := 
-CYCLO_FILES := 
 SIZE_OUTPUT := 
 OBJDUMP_LIST := 
-SU_FILES := 
 EXECUTABLES := 
 OBJS := 
-MAP_FILES := 
 S_DEPS := 
 S_UPPER_DEPS := 
 C_DEPS := 
+OBJCOPY_BIN := 
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
 Core/Src \
 Core/Startup \
-Drivers/BSP/Components/hts221 \
-Drivers/BSP/Components/l3gd20 \
-Drivers/BSP/sensors \
+Drivers/BSP/Components/lsm303c \
+Drivers/BSP/devices \
 Drivers/STM32L4xx_HAL_Driver/Src \
 
