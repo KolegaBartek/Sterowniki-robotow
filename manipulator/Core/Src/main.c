@@ -27,13 +27,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
 #include "stm32l476g_discovery_glass_lcd.h"
 #include "stm32l476g_discovery_compass.h"
 #include "stdint.h"
+#include "stdlib.h"
 #include "stdio.h"
-#include "string.h"
-
+#include "filtr.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,25 +48,45 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
 #define MIDDLE HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0)
 #define LEFT HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1)
 #define RIGHT HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2)
 #define UP HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3)
 #define DOWN HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5)
 
+#define ZAKRES_CM_GORA 15
+#define ZAKRES_CM_DOL 0
+#define ZAKRES_GORA 16000
+#define ZAKRES_DOL -16000
+
+#define L1 8.70
+#define L2 6.40
+#define L3 12.70
+#define X_CONST 15.0
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+// zmienne z akcelemetru
 int16_t pDataXYZ[3];
-volatile uint8_t click;
+float x, y;
+
+// zmienne do przycisków
+uint8_t click;
 int last;
 int odczyt[4], current[4];
+
+// zmienne do wyświetlenia
 char buf[16];
-float Data[3];
+
+//zmienne do przegubow
+int16_t theta1, theta2, theta3;
+int16_t theta1_, theta2_, theta3_;
+lowpass_filter_t filter_theta1= {0};
+lowpass_filter_t filter_theta2= {0};
+lowpass_filter_t filter_theta3= {0};
 
 /* USER CODE END PV */
 
@@ -78,23 +98,31 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 int _write(int file, char *ptr, int len){
 	HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, 50);
 	return len;
 }
 
-/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if (GPIO_Pin == JOY_MIDDLE_Pin)
-    {
-        EXTI0_IRQHandler();
-    }
-    else if (GPIO_Pin == JOY_LEFT_Pin)
-    {
-        EXTI1_IRQHandler();
-    }
-}*/
+float skaluj_na_cm(int16_t wartosc){
+
+	 return ZAKRES_CM_DOL + (ZAKRES_CM_GORA - ZAKRES_CM_DOL) *
+	 ((float)wartosc - ZAKRES_DOL) / (ZAKRES_GORA - ZAKRES_DOL);
+}
+
+float skaluj_PWM1(int16_t wartosc){
+
+	 return abs(500 + (2500 - 500) * (float)wartosc / 180);
+}
+
+float skaluj_PWM2(int16_t wartosc){
+
+	 return abs(600 + (1500 - 600) * ((float)wartosc - 0) / (60 - 0));
+}
+
+float skaluj_PWM3(int16_t wartosc){
+
+	 return abs(1500 - abs(700 + (1500 - 700) * (float)wartosc / 80)) + 700;
+}
 
 /* USER CODE END 0 */
 
@@ -130,13 +158,17 @@ int main(void)
   MX_SPI2_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   BSP_LCD_GLASS_Init();
   BSP_COMPASS_Init();
-  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+  filter_lowpass_init(&filter_theta1);
+  filter_lowpass_init(&filter_theta2);
+  filter_lowpass_init(&filter_theta3);
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1); //chwytak - PB6
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2); //theta1 - PE11
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3); //theta2 - PE13
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4); //theta3 - PE14
 
   /* USER CODE END 2 */
 
@@ -148,93 +180,74 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	   /*
-	    * accelerometer
-	    */
+	  /*
+	   * display LCD
+	   */
 
-	  	BSP_COMPASS_AccGetXYZ(pDataXYZ);
+		if(UP){
+			click++;
+		}
 
-	   /*
-	    * LCD display
-	    */
-
-	  	last = HAL_GetTick();
-
-	  	if(UP == GPIO_PIN_SET){odczyt[0] = 1;}
-	  		if(!(UP == GPIO_PIN_SET) && odczyt[0] == 1){
-	  			odczyt[0] = 0;
-	  			current[0] = HAL_GetTick();
-	  			if((current[0] - last) < 50){
-	  				click++;
-	  				last = current[0];
-	  			}
-	  		}
-
-	  	last = HAL_GetTick();
-
-		if(DOWN == GPIO_PIN_SET){odczyt[1] = 1;}
-			if(!(DOWN == GPIO_PIN_SET) && odczyt[1] == 1){
-				odczyt[1] = 0;
-				current[1] = HAL_GetTick();
-				if((current[1] - last) < 50){
-					click--;
-					last = current[1];
-				}
-			}
+		if(DOWN){
+			click--;
+		}
 
 		BSP_LCD_GLASS_Clear();
 		switch(click%3){
 		  case 0:
-			sprintf(buf, "X%d", pDataXYZ[0]);
+			sprintf(buf, "th1:%d", theta1);
 			BSP_LCD_GLASS_DisplayString((uint8_t*)&buf);
 			break;
 		  case 1:
-		    sprintf(buf, "Y%d", pDataXYZ[1]);
+		    sprintf(buf, "th2:%d", theta2);
 			BSP_LCD_GLASS_DisplayString((uint8_t*)&buf);
 			break;
 		  case 2:
-			sprintf(buf, "Z%d", pDataXYZ[2]);
+			sprintf(buf, "th3:%d", theta3);
 			BSP_LCD_GLASS_DisplayString((uint8_t*)&buf);
 			break;
 		}
+		HAL_Delay(200);
 
-		HAL_Delay(250);
+	  /*
+	   * Actuators - joints
+	   */
 
-	    /*
-	     * Actuators - joints
-	     */
+	  BSP_COMPASS_AccGetXYZ(pDataXYZ);
 
-	    // first one
-	    //__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 1000);
+	  y = skaluj_na_cm(pDataXYZ[1]);
 
-	    // second one
-	    /*__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 1000);
-	    HAL_Delay(2000);
-	    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 1500);
-	 	HAL_Delay(2000);*/
+	  theta1 = abs(atan2(pDataXYZ[1], pDataXYZ[0])*180/M_PI);
+	  theta3 = acos((pow(y,2) + pow(X_CONST,2) - pow(L2,2) - pow(L3,2))/(2 * L3 * L2))*180/M_PI;
+	  theta2 = abs(atan2(y, X_CONST)*180/M_PI) + asin((sin(theta3) * L2)/(sqrt(pow(y,2) + pow(X_CONST,2))))*180/M_PI;
 
-	    // third one
-	    /*__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 1000);
-	    HAL_Delay(2000);
-	    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 1700);
-	    HAL_Delay(2000);*/
+	  //printf("theta1: %d\r\n\n", theta1);
+	  //printf("theta2: %d\r\n\n", theta2);
+	  //printf("theta3: %d\r\n\n", theta3);
 
-	    /*
-	     * End effector
-	     */
+	  //first one
+	  theta1_ = filter_lowpass(skaluj_PWM1(theta1), &filter_theta1);
+	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, theta1_);
 
-		last = HAL_GetTick();
+	  // second one
+	  theta2_ = filter_lowpass(skaluj_PWM2(theta2), &filter_theta2);
+	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, theta2_);
 
-		if(RIGHT == GPIO_PIN_SET){odczyt[2] = 1;}
-				if(!(RIGHT == GPIO_PIN_SET) && odczyt[2] == 1){
-					odczyt[2] = 0;
-					current[2] = HAL_GetTick();
-					if((current[2] - last) < 50){
-						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 500);
-						HAL_Delay(250);
-						last = current[2];
-					}
-				}
+	  // third one
+	  theta3_ = filter_lowpass(skaluj_PWM3(theta3), &filter_theta3);
+	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, theta3_);
+
+	  last = HAL_GetTick();
+	  if(RIGHT == GPIO_PIN_SET){odczyt[2] = 1;}
+		if(!(RIGHT == GPIO_PIN_SET) && odczyt[2] == 1){
+			odczyt[2] = 0;
+			current[2] = HAL_GetTick();
+			if((current[2] - last) < 50){
+				__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 500);
+				HAL_Delay(200);
+				last = current[2];
+			}
+		}
 
 		last = HAL_GetTick();
 
@@ -243,14 +256,12 @@ int main(void)
 					odczyt[3] = 0;
 					current[3] = HAL_GetTick();
 					if((current[3] - last) < 50){
-						__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 2500);
-						HAL_Delay(250);
+						__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 2000);
+						HAL_Delay(200);
 						last = current[3];
 					}
 				}
-  		}
-
-  HAL_Delay(500);
+		}
 
   /* USER CODE END 3 */
 }
